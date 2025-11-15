@@ -83,15 +83,36 @@ export default function Index() {
     }
   };
 
+  const toggleFavorite = async (id: number, currentFavorite: number) => {
+    try {
+      const db = getDatabase();
+      const newFavorite = currentFavorite === 1 ? 0 : 1;
+      await db.runAsync(
+        'UPDATE contacts SET favorite = ? WHERE id = ?',
+        [newFavorite, id]
+      );
+      loadContacts();
+    } catch (error) {
+      console.error('Lỗi toggle favorite:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật yêu thích');
+    }
+  };
+
   const renderContact = ({ item }: { item: Contact }) => (
     <View style={styles.contactItem}>
       <View style={styles.contactInfo}>
-        <Text style={styles.contactName}>
-          {item.name} {item.favorite === 1 && '⭐'}
-        </Text>
+        <Text style={styles.contactName}>{item.name}</Text>
         <Text style={styles.contactPhone}>{item.phone}</Text>
         {item.email && <Text style={styles.contactEmail}>{item.email}</Text>}
       </View>
+      <TouchableOpacity
+        onPress={() => toggleFavorite(item.id, item.favorite)}
+        style={styles.favoriteButton}
+      >
+        <Text style={styles.favoriteIcon}>
+          {item.favorite === 1 ? '⭐' : '☆'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -230,6 +251,12 @@ const styles = StyleSheet.create({
   },
   contactInfo: {
     flex: 1,
+  },
+  favoriteButton: {
+    padding: 8,
+  },
+  favoriteIcon: {
+    fontSize: 24,
   },
   contactName: {
     fontSize: 18,
