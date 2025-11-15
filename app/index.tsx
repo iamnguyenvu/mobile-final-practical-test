@@ -28,6 +28,7 @@ export default function Index() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [newContact, setNewContact] = useState({
     name: '',
     phone: '',
@@ -164,6 +165,54 @@ export default function Index() {
     );
   };
 
+  const handleImportFromAPI = async () => {
+    setImporting(true);
+    try {
+      // Fetch từ MockAPI hoặc JSONPlaceholder
+      const response = await fetch('https://jsonplaceholder.typicode.com/users');
+      
+      if (!response.ok) {
+        throw new Error('Không thể tải dữ liệu từ API');
+      }
+      
+      const users = await response.json();
+      const db = getDatabase();
+      
+      let imported = 0;
+      let skipped = 0;
+      
+      for (const user of users) {
+        // Kiểm tra xem số điện thoại đã tồn tại chưa
+        const existing = await db.getFirstAsync<Contact>(
+          'SELECT * FROM contacts WHERE phone = ?',
+          [user.phone]
+        );
+        
+        if (!existing) {
+          const now = Date.now();
+          await db.runAsync(
+            'INSERT INTO contacts (name, phone, email, favorite, created_at) VALUES (?, ?, ?, ?, ?)',
+            [user.name, user.phone, user.email, 0, now]
+          );
+          imported++;
+        } else {
+          skipped++;
+        }
+      }
+      
+      loadContacts();
+      Alert.alert(
+        'Import thành công',
+        `Đã thêm ${imported} liên hệ mới${skipped > 0 ? `, bỏ qua ${skipped} liên hệ trùng` : ''}`
+      );
+    } catch (error) {
+      console.error('Lỗi import:', error);
+      Alert.alert('Lỗi', 'Không thể import dữ liệu từ API');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const renderContact = ({ item }: { item: Contact }) => (
     <TouchableOpacity 
       style={styles.contactItem}
@@ -205,12 +254,23 @@ export default function Index() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Danh bạ</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => setModalVisible(true)}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={[styles.importButton, importing && styles.importButtonDisabled]}
+            onPress={handleImportFromAPI}
+            disabled={importing}
+          >
+            <Text style={styles.importButtonText}>
+              {importing ? '⏳' : '📥'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       <View style={styles.searchContainer}>
@@ -327,6 +387,24 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  importButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#34C759',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  importButtonDisabled: {
+    opacity: 0.5,
+  },
+  importButtonText: {
+    fontSize: 20,
   },
   addButton: {
     width: 40,
