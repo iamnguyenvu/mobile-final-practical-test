@@ -26,6 +26,8 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [newContact, setNewContact] = useState({
     name: '',
     phone: '',
@@ -52,6 +54,16 @@ export default function Index() {
       setLoading(false);
     }
   };
+
+  const filteredContacts = contacts.filter((contact) => {
+    const matchesSearch = 
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.includes(searchQuery);
+    
+    const matchesFavorite = !showFavoritesOnly || contact.favorite === 1;
+    
+    return matchesSearch && matchesFavorite;
+  });
 
   const validateEmail = (email: string) => {
     if (email.length === 0) return true;
@@ -200,15 +212,34 @@ export default function Index() {
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
+      
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity
+          style={[styles.filterButton, showFavoritesOnly && styles.filterButtonActive]}
+          onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+        >
+          <Text style={styles.filterButtonText}>
+            {showFavoritesOnly ? '⭐ Yêu thích' : '☆ Tất cả'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       {loading ? (
         <Text>Đang tải...</Text>
-      ) : contacts.length === 0 ? (
+      ) : filteredContacts.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>Chưa có liên hệ nào.</Text>
+          <Text style={styles.emptyText}>
+            {contacts.length === 0 ? 'Chưa có liên hệ nào.' : 'Không tìm thấy liên hệ nào.'}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={contacts}
+          data={filteredContacts}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderContact}
           contentContainerStyle={styles.listContainer}
@@ -309,6 +340,41 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
     fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  filterButton: {
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  filterButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   listContainer: {
     padding: 16,
