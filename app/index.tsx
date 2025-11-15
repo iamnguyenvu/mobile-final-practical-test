@@ -25,6 +25,7 @@ export default function Index() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [newContact, setNewContact] = useState({
     name: '',
     phone: '',
@@ -67,20 +68,42 @@ export default function Index() {
 
     try {
       const db = getDatabase();
-      const now = Date.now();
-      await db.runAsync(
-        'INSERT INTO contacts (name, phone, email, favorite, created_at) VALUES (?, ?, ?, ?, ?)',
-        [newContact.name.trim(), newContact.phone.trim(), newContact.email.trim(), 0, now]
-      );
+      
+      if (editingId) {
+        // Edit mode
+        await db.runAsync(
+          'UPDATE contacts SET name = ?, phone = ?, email = ? WHERE id = ?',
+          [newContact.name.trim(), newContact.phone.trim(), newContact.email.trim(), editingId]
+        );
+        Alert.alert('Thành công', 'Đã cập nhật liên hệ');
+      } else {
+        // Add mode
+        const now = Date.now();
+        await db.runAsync(
+          'INSERT INTO contacts (name, phone, email, favorite, created_at) VALUES (?, ?, ?, ?, ?)',
+          [newContact.name.trim(), newContact.phone.trim(), newContact.email.trim(), 0, now]
+        );
+        Alert.alert('Thành công', 'Đã thêm liên hệ mới');
+      }
       
       setModalVisible(false);
+      setEditingId(null);
       setNewContact({ name: '', phone: '', email: '' });
       loadContacts();
-      Alert.alert('Thành công', 'Đã thêm liên hệ mới');
     } catch (error) {
-      console.error('Lỗi thêm contact:', error);
-      Alert.alert('Lỗi', 'Không thể thêm liên hệ');
+      console.error('Lỗi lưu contact:', error);
+      Alert.alert('Lỗi', 'Không thể lưu liên hệ');
     }
+  };
+
+  const handleEditContact = (contact: Contact) => {
+    setEditingId(contact.id);
+    setNewContact({
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+    });
+    setModalVisible(true);
   };
 
   const toggleFavorite = async (id: number, currentFavorite: number) => {
@@ -99,7 +122,10 @@ export default function Index() {
   };
 
   const renderContact = ({ item }: { item: Contact }) => (
-    <View style={styles.contactItem}>
+    <TouchableOpacity 
+      style={styles.contactItem}
+      onLongPress={() => handleEditContact(item)}
+    >
       <View style={styles.contactInfo}>
         <Text style={styles.contactName}>{item.name}</Text>
         <Text style={styles.contactPhone}>{item.phone}</Text>
@@ -113,7 +139,7 @@ export default function Index() {
           {item.favorite === 1 ? '⭐' : '☆'}
         </Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   if (Platform.OS === 'web') {
@@ -154,11 +180,17 @@ export default function Index() {
         visible={modalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setEditingId(null);
+          setNewContact({ name: '', phone: '', email: '' });
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Thêm liên hệ mới</Text>
+            <Text style={styles.modalTitle}>
+              {editingId ? 'Sửa liên hệ' : 'Thêm liên hệ mới'}
+            </Text>
             
             <TextInput
               style={styles.input}
@@ -189,6 +221,7 @@ export default function Index() {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setModalVisible(false);
+                  setEditingId(null);
                   setNewContact({ name: '', phone: '', email: '' });
                 }}
               >
