@@ -34,7 +34,10 @@ export default function Index() {
 
   useEffect(() => {
     if (Platform.OS !== 'web') {
-      loadContacts();
+      // Đợi database khởi tạo xong trước khi load
+      setTimeout(() => {
+        loadContacts();
+      }, 500);
     }
   }, []);
 
@@ -121,6 +124,34 @@ export default function Index() {
     }
   };
 
+  const handleDeleteContact = (id: number, name: string) => {
+    Alert.alert(
+      'Xác nhận xóa',
+      `Bạn có chắc muốn xóa liên hệ "${name}"?`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const db = getDatabase();
+              // Sử dụng runAsync với statement riêng
+              await db.runAsync('DELETE FROM contacts WHERE id = ?', id);
+              loadContacts();
+            } catch (error) {
+              console.error('Lỗi xóa contact:', error);
+              Alert.alert('Lỗi', 'Không thể xóa liên hệ');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderContact = ({ item }: { item: Contact }) => (
     <TouchableOpacity 
       style={styles.contactItem}
@@ -131,14 +162,22 @@ export default function Index() {
         <Text style={styles.contactPhone}>{item.phone}</Text>
         {item.email && <Text style={styles.contactEmail}>{item.email}</Text>}
       </View>
-      <TouchableOpacity
-        onPress={() => toggleFavorite(item.id, item.favorite)}
-        style={styles.favoriteButton}
-      >
-        <Text style={styles.favoriteIcon}>
-          {item.favorite === 1 ? '⭐' : '☆'}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.contactActions}>
+        <TouchableOpacity
+          onPress={() => toggleFavorite(item.id, item.favorite)}
+          style={styles.favoriteButton}
+        >
+          <Text style={styles.favoriteIcon}>
+            {item.favorite === 1 ? '⭐' : '☆'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleDeleteContact(item.id, item.name)}
+          style={styles.deleteButton}
+        >
+          <Text style={styles.deleteIcon}>✕</Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 
@@ -285,11 +324,29 @@ const styles = StyleSheet.create({
   contactInfo: {
     flex: 1,
   },
+  contactActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   favoriteButton: {
     padding: 8,
   },
   favoriteIcon: {
     fontSize: 24,
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteIcon: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   contactName: {
     fontSize: 18,
